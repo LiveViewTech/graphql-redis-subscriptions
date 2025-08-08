@@ -3,9 +3,13 @@
   "version": "2.7.0",
   "description": "A graphql-subscriptions PubSub Engine using redis",
   "main": "dist/index.js",
+  "publishConfig": {
+    "registry": "https://lvt.jfrog.io/artifactory/api/npm/npm/",
+    "directory": "build"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/davidyaha/graphql-redis-subscriptions.git"
+    "url": "https://github.com/LiveViewTech/graphql-redis-subscriptions"
   },
   "keywords": [
     "graphql",
@@ -33,8 +37,7 @@
     "testonly": "mocha --reporter spec src/test/tests.ts",
     "integration": "mocha --reporter spec src/test/integration-tests.ts",
     "coverage": "nyc --reporter=html --reporter=text mocha src/test/**/*.ts",
-    "prepublish": "tsc",
-    "prepublishOnly": "npm run test"
+    "prepublish": "tsc"
   },
   "peerDependencies": {
     "graphql-subscriptions": "^1.0.0 || ^2.0.0 || ^3.0.0"
