@@ -159,7 +159,6 @@ export class RedisPubSub implements PubSubEngine {
     if (refs.size === 1) {
       // unsubscribe from specific channel and pattern match
       this.redisSubscriber.unsubscribe(triggerName);
-      this.redisSubscriber.punsubscribe(triggerName);
 
       this.subsRefsMap.delete(triggerName);
     } else {
