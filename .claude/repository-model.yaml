@@ -1,0 +1,298 @@
+version: 1
+facts:
+  languages:
+    - id: lang-typescript
+      value: TypeScript
+      evidence:
+        - tsconfig.json
+        - package.json
+        - src/index.ts
+  frameworks:
+    - id: fw-graphql-subscriptions
+      value: graphql-subscriptions
+      evidence:
+        - package.json
+        - src/redis-pubsub.ts
+    - id: fw-mocha
+      value: mocha
+      evidence:
+        - package.json
+        - .mocharc.json
+    - id: fw-ioredis
+      value: ioredis
+      evidence:
+        - package.json
+        - src/redis-pubsub.ts
+  commands:
+    - id: cmd-compile
+      name: compile
+      value: tsc
+      evidence:
+        - package.json#scripts.compile
+    - id: cmd-test
+      name: test
+      value: npm run coverage && npm run lint
+      evidence:
+        - package.json#scripts.test
+    - id: cmd-lint
+      name: lint
+      value: eslint src --ext ts
+      evidence:
+        - package.json#scripts.lint
+    - id: cmd-watch
+      name: watch
+      value: tsc -w
+      evidence:
+        - package.json#scripts.watch
+    - id: cmd-testonly
+      name: testonly
+      value: mocha --reporter spec src/test/tests.ts
+      evidence:
+        - package.json#scripts.testonly
+    - id: cmd-integration
+      name: integration
+      value: mocha --reporter spec src/test/integration-tests.ts
+      evidence:
+        - package.json#scripts.integration
+    - id: cmd-coverage
+      name: coverage
+      value: nyc --reporter=html --reporter=text mocha src/test/**/*.ts
+      evidence:
+        - package.json#scripts.coverage
+    - id: cmd-prepublish
+      name: prepublish
+      value: tsc
+      evidence:
+        - package.json#scripts.prepublish
+  entry_points:
+    - id: entry-src-index
+      value: src/index.ts
+      evidence:
+        - src/index.ts
+        - package.json
+    - id: entry-redis-pubsub
+      value: src/redis-pubsub.ts
+      evidence:
+        - src/redis-pubsub.ts
+        - src/index.ts
+    - id: entry-pubsub-async-iterator
+      value: src/pubsub-async-iterator.ts
+      evidence:
+        - src/pubsub-async-iterator.ts
+        - src/redis-pubsub.ts
+  components:
+    - id: comp-src
+      name: src
+      path: src
+      evidence:
+        - src/index.ts
+        - src/redis-pubsub.ts
+        - src/pubsub-async-iterator.ts
+        - tsconfig.json
+  dependencies:
+    - id: dep-graphql-subscriptions
+      name: graphql-subscriptions
+      type: external
+      evidence:
+        - package.json
+    - id: dep-ioredis
+      name: ioredis
+      type: external
+      evidence:
+        - package.json
+    - id: dep-graphql
+      name: graphql
+      type: external
+      evidence:
+        - package.json
+    - id: dep-typescript
+      name: typescript
+      type: external
+      evidence:
+        - package.json
+    - id: dep-mocha
+      name: mocha
+      type: external
+      evidence:
+        - package.json
+    - id: dep-nyc
+      name: nyc
+      type: external
+      evidence:
+        - package.json
+    - id: dep-chai
+      name: chai
+      type: external
+      evidence:
+        - package.json
+    - id: dep-eslint
+      name: eslint
+      type: external
+      evidence:
+        - package.json
+        - .eslintrc.js
+  external_services:
+    - id: svc-redis
+      value: Redis
+      evidence:
+        - src/redis-pubsub.ts
+        - .github/workflows/test.yml
+        - README.md
+    - id: svc-redis-cluster
+      value: Redis Cluster (grokzen/redis-cluster)
+      evidence:
+        - .github/workflows/test.yml
+        - src/test/integration-tests.ts
+        - README.md
+    - id: svc-lvt-jfrog
+      value: LVT JFrog npm registry
+      evidence:
+        - package.json
+    - id: svc-npmjs
+      value: npmjs.org registry
+      evidence:
+        - .github/workflows/publish.yml
+  testing:
+    - id: test-mocha
+      framework: mocha
+      evidence:
+        - package.json
+        - .mocharc.json
+        - src/test/tests.ts
+    - id: test-nyc
+      framework: nyc
+      evidence:
+        - package.json
+        - .nycrc.json
+    - id: test-chai
+      framework: chai
+      evidence:
+        - package.json
+        - src/test/tests.ts
+analysis:
+  purpose:
+    value: "TypeScript library that implements the graphql-subscriptions PubSubEngine over Redis pub/sub so multiple GraphQL servers can share subscription events."
+    confidence: high
+    evidence_refs:
+      - fw-graphql-subscriptions
+      - entry-redis-pubsub
+      - entry-src-index
+      - svc-redis
+      - comp-src
+  architecture:
+    value: "Consumers import RedisPubSub from src/index.ts. publish/subscribe go through separate ioredis publisher and subscriber clients; PubSubAsyncIterator adapts PubSubEngine events to AsyncIterator for GraphQL subscribe resolvers; options.pattern switches to psubscribe."
+    confidence: high
+    evidence_refs:
+      - entry-src-index
+      - entry-redis-pubsub
+      - entry-pubsub-async-iterator
+      - fw-ioredis
+      - svc-redis
+  patterns:
+    - id: pat-dual-redis-clients
+      value: "RedisPubSub uses distinct publisher and subscriber Redis clients (injected or auto-created via ioredis)."
+      confidence: high
+      evidence_refs:
+        - entry-redis-pubsub
+        - fw-ioredis
+    - id: pat-pending-subscribe-coalesce
+      value: "Concurrent subscribe calls for the same trigger coalesce on one in-flight Redis subscribe via subsPendingRefsMap."
+      confidence: high
+      evidence_refs:
+        - entry-redis-pubsub
+    - id: pat-serde-hooks
+      value: "Optional serializer, deserializer, and reviver hooks customize payload encoding; reviver and deserializer are mutually exclusive."
+      confidence: high
+      evidence_refs:
+        - entry-redis-pubsub
+    - id: pat-pattern-subscribe
+      value: "Passing options.pattern true uses Redis psubscribe for channel patterns."
+      confidence: high
+      evidence_refs:
+        - entry-redis-pubsub
+  component_notes:
+    - ref: comp-src
+      purpose: "Library implementation of RedisPubSub, PubSubAsyncIterator, and a local withFilter helper used by integration tests."
+      confidence: high
+  service_notes:
+    - ref: svc-redis
+      purpose: "Primary pub/sub transport for subscription events."
+      integration: "ioredis clients created in RedisPubSub or injected via publisher/subscriber options; CI and local tests expect Redis on port 6379."
+      confidence: high
+    - ref: svc-redis-cluster
+      purpose: "Cluster mode covered by integration tests and documented in README."
+      integration: "grokzen/redis-cluster service in GitHub Actions; tests connect to ports 7001-7006."
+      confidence: high
+    - ref: svc-lvt-jfrog
+      purpose: "Declared publish registry in package.json publishConfig."
+      integration: "publishConfig.registry is https://lvt.jfrog.io/artifactory/api/npm/npm/ with directory dist."
+      confidence: medium
+    - ref: svc-npmjs
+      purpose: "GitHub Actions publish workflow authenticates to registry.npmjs.org."
+      integration: "publish.yml runs npm publish --provenance --access public with NPM_TOKEN."
+      confidence: high
+  dangerous_areas:
+    - id: danger-pattern-unsubscribe
+      value: "unsubscribe always calls redisSubscriber.unsubscribe and never punsubscribe"
+      reason: "Pattern subscriptions use psubscribe, but unsubscribe path only issues unsubscribe; JET-31291 removed punsubscribe. Pattern channel cleanup may leave Redis pattern subscriptions active."
+      confidence: high
+      evidence_refs:
+        - entry-redis-pubsub
+    - id: danger-reviver-deserializer
+      value: "Passing both reviver and deserializer throws at construction"
+      reason: "Constructor rejects combining reviver with deserializer; easy footgun when copying README examples."
+      confidence: high
+      evidence_refs:
+        - entry-redis-pubsub
+    - id: danger-tests-need-redis
+      value: "npm test / coverage / integration require live Redis"
+      reason: "coverage runs all src/test/**/*.ts including integration tests that open real Redis and Redis Cluster connections; without those services tests fail."
+      confidence: high
+      evidence_refs:
+        - cmd-test
+        - cmd-coverage
+        - cmd-integration
+        - svc-redis
+        - svc-redis-cluster
+        - test-mocha
+  questions:
+    - id: q-publish-registry-mismatch
+      question: "package.json publishConfig.registry points at LVT JFrog, but .github/workflows/publish.yml configures registry.npmjs.org and runs npm publish there. Which registry is the intended publish target for @lvt/graphql-redis-subscriptions?"
+      area: publishing
+      priority: high
+      evidence_refs:
+        - svc-lvt-jfrog
+        - svc-npmjs
+    - id: q-docs-package-name
+      question: "Package name is @lvt/graphql-redis-subscriptions but README install/publish docs still describe the unscoped upstream graphql-redis-subscriptions on npmjs, and package.json homepage/bugs still point at davidyaha/graphql-redis-subscriptions. Should docs and metadata be updated for the LVT fork?"
+      area: documentation
+      priority: high
+      evidence_refs:
+        - svc-npmjs
+        - svc-lvt-jfrog
+    - id: q-with-filter-not-exported
+      question: "src/with-filter.ts exists and is used by integration tests but is not re-exported from src/index.ts; README tells consumers to import withFilter from graphql-subscriptions. Is the local copy test-only by design?"
+      area: api-surface
+      priority: medium
+      evidence_refs:
+        - entry-src-index
+        - comp-src
+    - id: q-punsubscribe-removal-intent
+      question: "JET-31291 removed punsubscribe usage. Is leaving pattern subscriptions without punsubscribe on unsubscribe intentional for LVT, or an incomplete cleanup?"
+      area: redis-subscriptions
+      priority: high
+      evidence_refs:
+        - entry-redis-pubsub
+        - danger-pattern-unsubscribe
+    - id: q-package-lock-name
+      question: "package-lock.json top-level name is still graphql-redis-subscriptions while package.json name is @lvt/graphql-redis-subscriptions. Should the lockfile name be refreshed?"
+      area: packaging
+      priority: low
+      evidence_refs:
+        - dep-graphql-subscriptions
+    - id: q-lvt-jfrog-consumers
+      question: "What LVT services or packages consume this library from the JFrog npm registry, and is the @lvt scope required for internal installs?"
+      area: lvt-ecosystem
+      priority: medium
+      evidence_refs:
+        - svc-lvt-jfrog
